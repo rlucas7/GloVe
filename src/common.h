@@ -35,6 +35,11 @@
 #define SEED 1159241
 #define HASHFN bitwisehash
 
+/* Default FastReader buffer size (tunable). Adjust as needed. */
+#ifndef FR_DEFAULT_BUFSIZE
+#define FR_DEFAULT_BUFSIZE (1<<16) /* 64 KiB */
+#endif
+
 typedef double real;
 typedef struct cooccur_rec {
     int word1;
@@ -46,6 +51,24 @@ typedef struct hashrec {
     long long num; //count or id
     struct hashrec *next;
 } HASHREC;
+
+
+/* Forward-declare FastReader type and I/O helper functions for buffered reading
+   FastReader: instance-based buffered reader used by get_word_fast().
+   Put the struct here so callers (e.g., vocab_count.c) can allocate instances. */
+typedef struct FastReader {
+    FILE *f;
+    char *buf;
+    size_t bufsz;
+    size_t idx;   /* next read index */
+    size_t len;   /* bytes valid in buf */
+    int pushed;   /* one-byte pushback flag */
+    int pushch;   /* value for pushback */
+} FastReader;
+
+int fastreader_init(FastReader *fr, FILE *f, size_t bufsz);
+void fastreader_destroy(FastReader *fr);
+int get_word_fast(char *word, FastReader *fr);
 
 
 int scmp( char *s1, char *s2 );

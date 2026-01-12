@@ -93,23 +93,39 @@ int get_counts(void) {
     HASHREC *htmp;
     VOCAB *vocab;
     FILE *fid = stdin;
+    FastReader fr;
+    int use_fast = 0;
+    int nl=0;
 
     fprintf(stderr, "BUILDING VOCABULARY\n");
     if (verbose > 1) fprintf(stderr, "Processed %lld tokens.", i);
     // sprintf(format,"%%%ds",MAX_STRING_LENGTH);
+   /* Try to initialize a FastReader for stdin. If this fails, fall back to get_word(). */
+    if (fastreader_init(&fr, fid, FR_DEFAULT_BUFSIZE) == 0) {
+        use_fast = 1;
+    } else {
+        use_fast = 0;
+    }
     while ( ! feof(fid)) {
         // Insert all tokens into hashtable
-        int nl = get_word(str, fid);
-        if (nl) continue; // just a newline marker or feof
+        if (use_fast){
+            nl = get_word_fast(str, &fr);
+        } else {
+            nl = get_word(str, fid);
+        }
+        if (nl) continue;
         if (strcmp(str, "<unk>") == 0) {
             fprintf(stderr, "\nError, <unk> vector found in corpus.\nPlease remove <unk>s from your corpus (e.g. cat text8 | sed -e 's/<unk>/<raw_unk>/g' > text8.new)");
             free_table(vocab_hash);
+            if (use_fast) fastreader_destroy(&fr);
             return 1;
         }
         hashinsert(vocab_hash, str);
         if (((++i)%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[11G%lld tokens.", i);
     }
     if (verbose > 1) fprintf(stderr, "\033[0GProcessed %lld tokens.\n", i);
+    /* We're done reading input; free the FastReader buffer now to release memory. */
+    if (use_fast) fastreader_destroy(&fr);
     vocab = malloc(sizeof(VOCAB) * vocab_size);
     for (i = 0; i < TSIZE; i++) { // Migrate vocab to array
         htmp = vocab_hash[i];
