@@ -161,7 +161,7 @@ int merge_write(CRECID new, CRECID *old, FILE *fout) {
 }
 
 /* Merge [num] sorted files of cooccurrence records */
-int merge_files(int num) {
+int merge_files_old(int num) {
     int i, size;
     long long counter = 0;
     CRECID *pq, new, old;
@@ -214,6 +214,85 @@ int merge_files(int num) {
         remove(filename);
     }
     fprintf(stderr,"\n");
+    free_fid(fid, num);
+    free(pq);
+    return 0;
+}
+
+/* merge files and save to disk. For use in testing that the fastReader path
+   results in the same cooccurrence matrices even though the binaries are different.
+*/
+int merge_files(int num) {
+    int i, size;
+    long long counter = 0;
+    CRECID *pq, new, old;
+    char filename[200];
+    FILE **fid, *fout;
+    char merged_filename[256];
+
+    fid = calloc(num, sizeof(FILE *));
+    pq = malloc(sizeof(CRECID) * num);
+
+    /* Create a single merged output file so different builds produce
+       a deterministic merged file we can compare. */
+    snprintf(merged_filename, sizeof(merged_filename), "%s_merged.bin", file_head);
+    fout = fopen(merged_filename, "wb");
+    if (!fout) {
+        fprintf(stderr, "Error: unable to open merged output file '%s' for writing.\n", merged_filename);
+        free(fid);
+        free(pq);
+        return 1;
+    }
+    if (verbose > 1) fprintf(stderr, "Merging cooccurrence files: processed 0 lines.");
+
+    /* Open all temporary chunk files and add first entry of each to priority queue */
+    for (i = 0; i < num; i++) {
+        sprintf(filename, "%s_%04d.bin", file_head, i);
+        fid[i] = fopen(filename, "rb");
+        if (fid[i] == NULL) { log_file_loading_error("file", filename); free_fid(fid, num); free(pq); fclose(fout); return 1; }
+        fread(&new, sizeof(CREC), 1, fid[i]);
+        new.id = i;
+        insert(pq, new, i + 1);
+    }
+
+    /* Pop top node, save it in old to see if the next entry is a duplicate */
+    size = num;
+    old = pq[0];
+    i = pq[0].id;
+    delete(pq, size);
+    fread(&new, sizeof(CREC), 1, fid[i]);
+    if (feof(fid[i])) size--;
+    else {
+        new.id = i;
+        insert(pq, new, size);
+    }
+
+    /* Repeatedly pop top node and fill priority queue until files have reached EOF */
+    while (size > 0) {
+        counter += merge_write(pq[0], &old, fout); /* Only count the lines written to file, not duplicates */
+        if ((counter % 100000) == 0) if (verbose > 1) fprintf(stderr, "\033[39G%lld lines.", counter);
+        i = pq[0].id;
+        delete(pq, size);
+        fread(&new, sizeof(CREC), 1, fid[i]);
+        if (feof(fid[i])) size--;
+        else {
+            new.id = i;
+            insert(pq, new, size);
+        }
+    }
+
+    /* Write the last accumulated record and finalize */
+    fwrite(&old, sizeof(CREC), 1, fout);
+    fprintf(stderr, "\033[0GMerging cooccurrence files: processed %lld lines.\n", ++counter);
+
+    /* Close merged file and remove temporary chunk files */
+    fclose(fout);
+    for (i = 0; i < num; i++) {
+        sprintf(filename, "%s_%04d.bin", file_head, i);
+        remove(filename);
+    }
+    fprintf(stderr, "\n");
+
     free_fid(fid, num);
     free(pq);
     return 0;
