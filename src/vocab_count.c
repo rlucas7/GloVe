@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "common.h"
 
 typedef struct vocabulary {
@@ -44,7 +45,7 @@ int CompareVocabTie(const void *a, const void *b) {
     long long c;
     if ( (c = ((VOCAB *) b)->count - ((VOCAB *) a)->count) != 0) return ( c > 0 ? 1 : -1 );
     else return (scmp(((VOCAB *) a)->word,((VOCAB *) b)->word));
-    
+
 }
 
 /* Vocab frequency comparison; no tie-breaker */
@@ -58,7 +59,7 @@ int CompareVocab(const void *a, const void *b) {
 void hashinsert(HASHREC **ht, char *w) {
     HASHREC     *htmp, *hprv;
     unsigned int hval = HASHFN(w, TSIZE, SEED);
-    
+
     for (hprv = NULL, htmp = ht[hval]; htmp != NULL && scmp(htmp->word, w) != 0; hprv = htmp, htmp = htmp->next);
     if (htmp == NULL) {
         htmp = (HASHREC *) malloc( sizeof(HASHREC) );
@@ -92,7 +93,7 @@ int get_counts(void) {
     HASHREC *htmp;
     VOCAB *vocab;
     FILE *fid = stdin;
-    
+
     fprintf(stderr, "BUILDING VOCABULARY\n");
     if (verbose > 1) fprintf(stderr, "Processed %lld tokens.", i);
     // sprintf(format,"%%%ds",MAX_STRING_LENGTH);
@@ -130,7 +131,7 @@ int get_counts(void) {
         qsort(vocab, j, sizeof(VOCAB), CompareVocab);
     else max_vocab = j;
     qsort(vocab, max_vocab, sizeof(VOCAB), CompareVocabTie); //After (possibly) truncating, sort (possibly again), breaking ties alphabetically
-    
+
     for (i = 0; i < max_vocab; i++) {
         if (vocab[i].count < min_count) { // If a minimum frequency cutoff exists, truncate vocabulary
             if (verbose > 0) fprintf(stderr, "Truncating vocabulary at min count %lld.\n",min_count);
@@ -138,7 +139,7 @@ int get_counts(void) {
         }
         printf("%s %lld\n",vocab[i].word,vocab[i].count);
     }
-    
+
     if (i == max_vocab && max_vocab < j) if (verbose > 0) fprintf(stderr, "Truncating vocabulary at size %lld.\n", max_vocab);
     fprintf(stderr, "Using vocabulary of size %lld.\n\n", i);
     free_table(vocab_hash);
@@ -146,7 +147,34 @@ int get_counts(void) {
     return 0;
 }
 
+/* Parse a positive integer from env (bytes). Returns 0 on invalid/unset. */
+/*static size_t parse_env_size(const char *s) {
+    if (s == NULL) return 0;
+    char *end;
+    errno = 0;
+    long val = strtol(s, &end, 10);
+    if (errno != 0 || end == s || val <= 0) return 0;
+    return (size_t) val;
+}
+*/
+
 int main(int argc, char **argv) {
+    /* Increase stdin buffering to reduce per-char stdio locks (fgetc/flockfile cost) */
+
+    /* START: some stuff to set the buffer size of the fs running on the host box */
+
+    //const char *env = getenv("GLOVE_IO_BUF");
+    size_t desired = 1<<20;  // default_size;
+    //size_t envsz = parse_env_size(env);
+    //if (envsz > 0) desired = envsz;
+
+    // END: code to echo fs block size on host...
+    /* default to a 1 MiB buffer; must be before any reads from stdin */
+    // takes from GLOVE_IO_BUF if that value is set
+    setvbuf(stdin, NULL, _IOFBF, desired);
+    //printf("Using %lu bytes\n", desired);
+
+    /* existing initialization code follows... */
     if (argc == 2 &&
         (!scmp(argv[1], "-h") || !scmp(argv[1], "-help") || !scmp(argv[1], "--help"))) {
         printf("Simple tool to extract unigram counts\n");

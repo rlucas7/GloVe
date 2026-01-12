@@ -19,7 +19,8 @@ ifeq ($(APPLE_SILICON),)
 CPU_ARCHITECTURE_FLAGS = -march=native
 endif
 
-CFLAGS = -pthread -O3 $(CPU_ARCHITECTURE_FLAGS) -funroll-loops -Wall -Wextra -Wpedantic
+CFLAGS = -pthread $(CPU_ARCHITECTURE_FLAGS) -funroll-loops -Wall -Wextra -Wpedantic
+CFLAGS += -g -O2 -fno-omit-frame-pointer -funwind-tables
 LDLIBS = -lm -pthread
 BUILDDIR := build
 SRCDIR := src
