@@ -62,8 +62,6 @@ typedef struct FastReader {
     size_t bufsz;
     size_t idx;   /* next read index */
     size_t len;   /* bytes valid in buf */
-    int pushed;   /* one-byte pushback flag */
-    int pushch;   /* value for pushback */
 } FastReader;
 
 int fastreader_init(FastReader *fr, FILE *f, size_t bufsz);
