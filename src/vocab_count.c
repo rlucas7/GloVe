@@ -106,23 +106,46 @@ int get_counts(void) {
     } else {
         use_fast = 0;
     }
-    while ( ! feof(fid)) {
-        // Insert all tokens into hashtable
-        if (use_fast){
-            nl = get_word_fast(str, &fr);
-        } else {
-            nl = get_word(str, fid);
-        }
-        if (nl) continue;
-        if (strcmp(str, "<unk>") == 0) {
-            fprintf(stderr, "\nError, <unk> vector found in corpus.\nPlease remove <unk>s from your corpus (e.g. cat text8 | sed -e 's/<unk>/<raw_unk>/g' > text8.new)");
-            free_table(vocab_hash);
-            if (use_fast) fastreader_destroy(&fr);
-            return 1;
-        }
-        hashinsert(vocab_hash, str);
-        if (((++i)%100000) == 0) if (verbose > 1) fprintf(stderr,"\033[11G%lld tokens.", i);
+
+    /* Reader-driven loop: call the reader repeatedly and use fastreader_eof()
+   (for the FastReader) or feof() (for the stdio reader) to decide when the
+   stream is truly exhausted. This avoids breaking early when fread() sets
+   the FILE* EOF flag while bytes remain buffered in the FastReader. */
+    for (;;) {
+    /* Read next token using the selected reader */
+    if (use_fast) {
+        nl = get_word_fast(str, &fr);
+    } else {
+        nl = get_word(str, fid);
     }
+    /* If reader returned a newline/EOF marker (nl != 0), decide whether the
+       stream is truly done. For the fast reader we must check fastreader_eof()
+       because fread may have set feof() while there are buffered bytes left. */
+    if (nl) {
+        int really_eof = 0;
+        if (use_fast) {
+            if (fastreader_eof(&fr)) really_eof = 1;
+        } else {
+            if (feof(fid)) really_eof = 1;
+        }
+        if (really_eof) break;  /* stop processing */
+        /* it was only a newline marker; skip to next token */
+        continue;
+    }
+
+    /* At this point we have an actual token in `str` */
+    if (strcmp(str, "<unk>") == 0) {
+        fprintf(stderr, "\nError, <unk> vector found in corpus.\nPlease remove <unk>s from your corpus (e.g. cat text8 | sed -e 's/<unk>/<raw_unk>/g' > text8.new)");
+        free_table(vocab_hash);
+        if (use_fast) fastreader_destroy(&fr);
+        return 1;
+    }
+    hashinsert(vocab_hash, str);
+
+    /* increment token counter and occasional progress output (keeps original ++i idiom) */
+    if (((++i) % 100000) == 0) if (verbose > 1) fprintf(stderr, "\033[11G%lld tokens.", i);
+}
+
     if (verbose > 1) fprintf(stderr, "\033[0GProcessed %lld tokens.\n", i);
     /* We're done reading input; free the FastReader buffer now to release memory. */
     if (use_fast) fastreader_destroy(&fr);

@@ -70,6 +70,12 @@ int fastreader_init(FastReader *fr, FILE *f, size_t bufsz);
 void fastreader_destroy(FastReader *fr);
 int get_word_fast(char *word, FastReader *fr);
 
+/* Return non-zero when the underlying FILE* is at EOF and the FastReader has
+   no unread buffered bytes and no pushed byte pending. Use to decide whether
+   the reader has truly exhausted the input. Used when the stream is less than
+   the set buffer size to ensure all tokens are processed and premature exit
+   is not executed. */
+int fastreader_eof(FastReader *fr);
 
 int scmp( char *s1, char *s2 );
 unsigned int bitwisehash(char *word, int tsize, unsigned int seed);

@@ -102,24 +102,54 @@ void fastreader_destroy(FastReader *fr) {
     fr->pushed = 0;
 }
 
+/*If EOF is encountered, determine whether tokens still requiring
+  processing exist on the buffer.  */
+int fastreader_eof(FastReader *fr) {
+    if (!fr || !fr->f) return 1; /* treat as EOF on error */
+    /* Underlying FILE* EOF flag may be set when fread hit EOF even if fr->buf
+       still contains bytes. Only report EOF when there are no unread bytes
+       in the buffer and no pushed byte is pending. */
+    if (!feof(fr->f)) return 0;
+    if (fr->pushed) return 0;
+    if (fr->idx < fr->len) return 0; /* still buffered bytes */
+    return 1;
+}
+
+
 /* Like fgetc but reads from the FastReader */
 static inline int fastreader_getc(FastReader *fr) {
     if (fr->pushed) {
+        int c = (unsigned char)fr->pushch;
         fr->pushed = 0;
-        return fr->pushch;
+        // DEBUG code
+        //fprintf(stderr, "[FR] getc -> PUSHED '%c' (0x%02x)\n", (c >= 32 && c < 127) ? c : '?', c);
+        return c;
     }
     if (fr->idx >= fr->len) {
+       //DEBUG  size_t prev_len = fr->len;
         fr->len = fread(fr->buf, 1, fr->bufsz, fr->f);
         fr->idx = 0;
-        if (fr->len == 0) return EOF;
+        // DEBUG code
+        // fprintf(stderr, "[FR] refill: read=%zu prev_len=%zu bufsz=%zu\n", fr->len, prev_len, fr->bufsz);
+        if (fr->len == 0){
+            // DEBUG code
+            //fprintf(stderr, "[FR] getc -> EOF\n");
+            return EOF;
+        }
     }
-    return (unsigned char)fr->buf[fr->idx++];
+    int ch = (unsigned char)fr->buf[fr->idx++];
+    //DEBUG code
+    //fprintf(stderr, "[FR] getc -> BUF '%c' (0x%02x) idx=%zu len=%zu\n", (ch >= 32 && ch < 127) ? ch : '?', ch, fr->idx, fr->len);
+    return ch;
 }
 
 /* one-char pushback (for newline handling) */
 static inline void fastreader_ungetc(FastReader *fr, int ch) {
     fr->pushed = 1;
-    fr->pushch = ch;
+    fr->pushch = ch & 0xFF;
+
+    // DEBUG code
+    //fprintf(stderr, "[FR] ungetc -> PUSHED '%c' (0x%02x)\n", (ch >= 32 && ch < 127) ? ch : '?', ch & 0xFF);
 }
 
 /* Reentrant get_word that uses a FastReader instance.
