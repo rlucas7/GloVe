@@ -87,6 +87,8 @@ int fastreader_init(FastReader *fr, FILE *f, size_t bufsz) {
     if (!fr->buf) return -1;
     fr->bufsz = bufsz;
     fr->idx = fr->len = 0;
+    fr->pushed = 0;
+    fr->pushch = 0;
     return 0;
 }
 
@@ -97,10 +99,15 @@ void fastreader_destroy(FastReader *fr) {
     fr->buf = NULL;
     fr->f = NULL;
     fr->idx = fr->len = 0;
+    fr->pushed = 0;
 }
 
 /* Like fgetc but reads from the FastReader */
 static inline int fastreader_getc(FastReader *fr) {
+    if (fr->pushed) {
+        fr->pushed = 0;
+        return fr->pushch;
+    }
     if (fr->idx >= fr->len) {
         fr->len = fread(fr->buf, 1, fr->bufsz, fr->f);
         fr->idx = 0;
@@ -111,17 +118,8 @@ static inline int fastreader_getc(FastReader *fr) {
 
 /* one-char pushback (for newline handling) */
 static inline void fastreader_ungetc(FastReader *fr, int ch) {
-    /* If we still have input in the local buffer and can back up, do that
-       (cheap, no stdio interaction). Otherwise fall back to ungetc() on the
-       underlying FILE* so stdio semantics are preserved across fread() boundaries. */
-    if (fr->idx > 0) {
-        fr->idx--;
-        fr->buf[fr->idx] = (char)ch; /* restore the byte in buffer slot */
-    } else {
-        /* No buffered bytes to back up into; use stdio ungetc so next read
-           from the stream (including future fread) will see this char. */
-        ungetc(ch, fr->f);
-    }
+    fr->pushed = 1;
+    fr->pushch = ch;
 }
 
 /* Reentrant get_word that uses a FastReader instance.
