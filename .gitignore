@@ -37,6 +37,7 @@ build/*
 
 # OS X stuff
 ._*
+*.DS_Store*
 
 # demo.sh-produced artifacts
 /cooccurrence.bin
