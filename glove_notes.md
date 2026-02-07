@@ -743,7 +743,7 @@ which were made on Jan 23rd and Jan 30th respectively.
 
 *TODOs:*
 
-1. add code to compare via the variances and variance-covariance matrices
+1. Tidy up code is `misc.py` (and give it a better name) and compare to the variances and variance-covariance matrices
 that are returned via the GloVe-V paper.
 
-2. add notes describing the steps to generate the vector data necessary from the `src` executables. Write a worked example.
+2. Add notes describing the steps to generate the vector data necessary from the `src` executables. Write a worked example.
