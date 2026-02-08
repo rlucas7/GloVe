@@ -197,7 +197,7 @@ if __name__ == "__main__":
     if args.plot:
         plt.figure()
         sns.heatmap(var_covar)
-        plt.title('Variance-Covariance Matrix Plot with Values')
+        plt.title(f"Var-Covariance of GloVe-V Embedding\nDimensions for word: {id2word[v]}")
         plt.show()
 
     # NOTE: this is some wip code for nows with various word cooccur frequencies
