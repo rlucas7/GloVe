@@ -65,7 +65,7 @@ Additional outputs are available:
 Example usage:
 
 ```
-python misc.py \
+python glove_V.py \
   --vocab vocab.txt \
   --cooccur cooccurrences.bin \
   --vectors vectors.txt \
@@ -75,7 +75,7 @@ python misc.py \
   --plot-file antibiotics.var_covar.png
 ```
 
-## 2024 Vector Documentation 
+## 2024 Vector Documentation
 The training scripts and data preprocessing pipeline used for training the 2024 vectors can be found in the Training_README.md
 
 Analysis and more documentation for the new vectors can be found in this [report](https://arxiv.org/abs/2507.18103)
