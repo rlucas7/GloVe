@@ -45,6 +45,36 @@ Make sure you have the following prerequisites installed when running the steps 
 
 The demo.sh script downloads a small corpus, consisting of the first 100M characters of Wikipedia. It collects unigram counts, constructs and shuffles cooccurrence data, and trains a simple version of the GloVe model. It also runs a word analogy evaluation script in python to verify word vector quality. More details about training on your own corpus can be found by reading [demo.sh](https://github.com/stanfordnlp/GloVe/blob/master/demo.sh) or the [src/README.md](https://github.com/stanfordnlp/GloVe/tree/master/src)
 
+## Variance-covariance analysis workflow (`misc.py`)
+
+The `misc.py` helper can be used for on-demand variance-covariance analysis for a single target word from a trained model.
+
+The target selector is now required and mutually exclusive:
+
+* `--word-id <int>`: choose the word by vocabulary row id (1-indexed)
+* `--word <str>`: choose the word by token text
+
+If `--word` is used and the token does not exist in the vocabulary, the script tries fallback tokens (`<unk>` first, then ````). If no fallback token exists, it raises a runtime error.
+
+Additional outputs are available:
+
+* `--var-covar-npy <path>` writes the computed matrix as a NumPy `.npy` file
+* `--plot-file <path>` writes the heatmap figure to an image file
+* `--plot` still opens the interactive plot window
+
+Example usage:
+
+```
+python misc.py \
+  --vocab vocab.txt \
+  --cooccur cooccurrences.bin \
+  --vectors vectors.txt \
+  --dim 50 \
+  --word "antibiotics" \
+  --var-covar-npy antibiotics.var_covar.npy \
+  --plot-file antibiotics.var_covar.png
+```
+
 ## 2024 Vector Documentation 
 The training scripts and data preprocessing pipeline used for training the 2024 vectors can be found in the Training_README.md
 
