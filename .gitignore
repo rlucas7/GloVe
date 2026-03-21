@@ -46,3 +46,6 @@ build/*
 /vectors.bin
 /vectors.txt
 /vocab.txt
+
+__pycache__/
+*.pyc

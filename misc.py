@@ -190,7 +190,10 @@ if __name__ == "__main__":
                     fallback_token = token
                     break
             if fallback_id is None:
-                raise RuntimeError(f"Word '{requested_word}' does not exist in the corpus vocabulary.")
+                raise RuntimeError(
+                    f"Word '{requested_word}' does not exist in the corpus vocabulary, and no fallback token "
+                    f"('<unk>' or '``') is available."
+                )
             print(f"Word '{requested_word}' does not exist in the corpus; using fallback token '{fallback_token}'.")
             v = fallback_id
 
@@ -224,15 +227,17 @@ if __name__ == "__main__":
         print(f"Wrote variance-covariance matrix to: {args.var_covar_npy}")
 
     if args.plot or args.plot_file:
-        plt.figure()
-        sns.heatmap(var_covar)
-        plt.title(f"Var-Covariance of GloVe-V Embedding\nDimensions for word: {id2word[v]}")
-        if args.plot_file:
-            plt.savefig(args.plot_file, bbox_inches="tight")
-            print(f"Wrote variance-covariance plot to: {args.plot_file}")
-        if args.plot:
-            plt.show()
-        plt.close()
+        try:
+            plt.figure()
+            sns.heatmap(var_covar)
+            plt.title(f"Var-Covariance of GloVe-V Embedding\nDimensions for word: {id2word[v]}")
+            if args.plot_file:
+                plt.savefig(args.plot_file, bbox_inches="tight")
+                print(f"Wrote variance-covariance plot to: {args.plot_file}")
+            if args.plot:
+                plt.show()
+        finally:
+            plt.close()
 
     # NOTE: this is some wip code for nows with various word cooccur frequencies
     # the rest of this code is highly specific to text8 data and will need some
