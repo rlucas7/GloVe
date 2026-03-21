@@ -97,10 +97,13 @@ int get_counts(void) {
     fprintf(stderr, "BUILDING VOCABULARY\n");
     if (verbose > 1) fprintf(stderr, "Processed %lld tokens.", i);
     // sprintf(format,"%%%ds",MAX_STRING_LENGTH);
-    while ( ! feof(fid)) {
+    while (1) {
         // Insert all tokens into hashtable
         int nl = get_word(str, fid);
-        if (nl) continue; // just a newline marker or feof
+        if (nl) {
+            if (feof(fid)) break; // EOF marker
+            continue; // just a newline marker
+        }
         if (strcmp(str, "<unk>") == 0) {
             fprintf(stderr, "\nError, <unk> vector found in corpus.\nPlease remove <unk>s from your corpus (e.g. cat text8 | sed -e 's/<unk>/<raw_unk>/g' > text8.new)");
             free_table(vocab_hash);
@@ -197,4 +200,3 @@ int main(int argc, char **argv) {
     if ((i = find_arg((char *)"-min-count", argc, argv)) > 0) min_count = atoll(argv[i + 1]);
     return get_counts();
 }
-
