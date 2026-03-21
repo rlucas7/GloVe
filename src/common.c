@@ -36,49 +36,6 @@
 #define STRERROR(ERRNO, BUF, BUFSIZE) strerror_r((ERRNO), (BUF), (BUFSIZE))
 #endif
 
-#define READ_BUFFER_SIZE (1 << 20)
-
-typedef struct buffered_reader_state {
-    FILE *file;
-    unsigned char buf[READ_BUFFER_SIZE];
-    size_t pos;
-    size_t len;
-    int has_pushback;
-    int pushback_char;
-} BUFFERED_READER_STATE;
-
-static BUFFERED_READER_STATE buffered_reader = {0};
-
-static int buffered_getc(FILE *fin) {
-    if (buffered_reader.file != fin) {
-        buffered_reader.file = fin;
-        buffered_reader.pos = 0;
-        buffered_reader.len = 0;
-        buffered_reader.has_pushback = 0;
-    }
-    if (buffered_reader.has_pushback) {
-        buffered_reader.has_pushback = 0;
-        return buffered_reader.pushback_char;
-    }
-    if (buffered_reader.pos >= buffered_reader.len) {
-        buffered_reader.len = fread(buffered_reader.buf, sizeof(unsigned char), READ_BUFFER_SIZE, fin);
-        buffered_reader.pos = 0;
-        if (buffered_reader.len == 0) return EOF;
-    }
-    return buffered_reader.buf[buffered_reader.pos++];
-}
-
-static void buffered_ungetc(int ch, FILE *fin) {
-    if (ch == EOF) return;
-    if (buffered_reader.file != fin) {
-        buffered_reader.file = fin;
-        buffered_reader.pos = 0;
-        buffered_reader.len = 0;
-    }
-    buffered_reader.has_pushback = 1;
-    buffered_reader.pushback_char = ch;
-}
-
 /* Efficient string comparison */
 int scmp( char *s1, char *s2 ) {
     while (*s1 != '\0' && *s1 == *s2) {s1++; s2++;}
@@ -118,7 +75,7 @@ HASHREC ** inithashtable(void) {
 int get_word(char *word, FILE *fin) {
     int i = 0, ch;
     for ( ; ; ) {
-        ch = buffered_getc(fin);
+        ch = fgetc(fin);
         if (ch == '\r') continue;
         if (i == 0 && ((ch == '\n') || (ch == EOF))) {
             word[i] = 0;
@@ -126,7 +83,7 @@ int get_word(char *word, FILE *fin) {
         }
         if (i == 0 && ((ch == ' ') || (ch == '\t'))) continue; // skip leading space
         if ((ch == EOF) || (ch == ' ') || (ch == '\t') || (ch == '\n')) {
-            if (ch == '\n') buffered_ungetc(ch, fin); // return the newline next time as document ender
+            if (ch == '\n') ungetc(ch, fin); // return the newline next time as document ender
             break;
         }
         if (i < MAX_STRING_LENGTH - 1)
